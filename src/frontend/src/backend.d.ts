@@ -32,6 +32,7 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addPhoto(title: string, category: Category, blobKey: ExternalBlob): Promise<string>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deletePhoto(id: string): Promise<void>;

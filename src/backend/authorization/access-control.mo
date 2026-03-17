@@ -41,9 +41,8 @@ module {
     if (caller.isAnonymous()) { return #guest };
     switch (state.userRoles.get(caller)) {
       case (?role) { role };
-      case (null) {
-        Runtime.trap("User is not registered");
-      };
+      // Return guest for unregistered users instead of trapping
+      case (null) { #guest };
     };
   };
 

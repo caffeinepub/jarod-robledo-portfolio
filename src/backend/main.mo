@@ -35,7 +35,7 @@ actor {
     };
   };
 
-  let categories : [Category] = ["Architecture", "Interior Design", "Renders", "Photography"];
+  let categories : [Category] = ["Architecture", "Interior Design", "Renders", "Photography", "Other"];
 
   let photos = Map.empty<Text, Photo>();
   var nextId = 1;

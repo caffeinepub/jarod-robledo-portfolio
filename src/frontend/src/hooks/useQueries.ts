@@ -40,6 +40,20 @@ export function useListCategories() {
   });
 }
 
+export function useInitializeAdmin() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (secret: string) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor._initializeAccessControlWithSecret(secret);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["isAdmin"] });
+    },
+  });
+}
+
 export function useAddPhoto() {
   const { actor } = useActor();
   const qc = useQueryClient();

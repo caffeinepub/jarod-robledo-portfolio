@@ -29,6 +29,12 @@ const CATEGORIES = [
 
 const SKELETON_KEYS = ["sk1", "sk2", "sk3", "sk4", "sk5", "sk6"];
 
+function fileNameToTitle(filename: string): string {
+  const noExt = filename.replace(/\.[^.]+$/, "");
+  const spaced = noExt.replace(/[-_]+/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 interface AdminPanelProps {
   onClose: () => void;
 }
@@ -48,6 +54,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const handleFile = (f: File) => {
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    // Auto-fill title from filename if title is empty
+    if (!title.trim()) {
+      setTitle(fileNameToTitle(f.name));
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -59,16 +69,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !category || !file) {
-      toast.error("Please fill all fields and select a photo.");
+    if (!file) {
+      toast.error("Please select a photo to upload.");
       return;
     }
+
+    const resolvedTitle = title.trim() || fileNameToTitle(file.name);
+    const resolvedCategory = category || "Other";
 
     try {
       setProgress(0);
       await addPhoto.mutateAsync({
-        title: title.trim(),
-        category,
+        title: resolvedTitle,
+        category: resolvedCategory,
         file,
         onProgress: setProgress,
       });
@@ -78,8 +91,20 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       setFile(null);
       setPreview(null);
       setProgress(0);
-    } catch {
-      toast.error("Upload failed. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg &&
+        (msg.includes("Unauthorized") || msg.toLowerCase().includes("admin"))
+      ) {
+        toast.error(
+          "Upload failed: You need admin access. Please make sure you're using the admin link to access this site.",
+        );
+      } else if (msg) {
+        toast.error(`Upload failed: ${msg}`);
+      } else {
+        toast.error("Upload failed. Please try again.");
+      }
     }
   };
 
@@ -120,7 +145,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               Upload Photo
             </h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              {/* Dropzone — label wraps the file input for semantic correctness */}
+              {/* Dropzone */}
               <label
                 data-ocid="admin.dropzone"
                 htmlFor="dropzone-file"
@@ -156,7 +181,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 id="dropzone-file"
                 data-ocid="admin.upload_button"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -169,28 +194,34 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   htmlFor="photo-title"
                   className="text-xs tracking-widest uppercase text-muted-foreground"
                 >
-                  Title
+                  Title{" "}
+                  <span className="normal-case tracking-normal opacity-60">
+                    (optional)
+                  </span>
                 </Label>
                 <Input
                   id="photo-title"
                   data-ocid="admin.title_input"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter photo title"
+                  placeholder="Auto-filled from filename if blank"
                   className="mt-1 rounded-none"
                 />
               </div>
 
               <div>
                 <Label className="text-xs tracking-widest uppercase text-muted-foreground">
-                  Category
+                  Category{" "}
+                  <span className="normal-case tracking-normal opacity-60">
+                    (optional — defaults to Other)
+                  </span>
                 </Label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger
                     data-ocid="admin.category_select"
                     className="mt-1 rounded-none"
                   >
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select category (optional)" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => (
@@ -240,6 +271,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <Upload size={14} />
                 {addPhoto.isPending ? "Uploading…" : "Upload Photo"}
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Accepts JPG, PNG, and WEBP images
+              </p>
             </form>
           </div>
 
@@ -263,7 +297,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             )}
 
             {!isLoading && (!photos || photos.length === 0) && (
-              <div className="border border-dashed border-border p-12 text-center">
+              <div
+                data-ocid="admin.photos.empty_state"
+                className="border border-dashed border-border p-12 text-center"
+              >
                 <p className="text-muted-foreground text-sm">
                   No photos uploaded yet. Use the form to add your first photo.
                 </p>
